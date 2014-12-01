@@ -6,9 +6,8 @@ open System.Threading
 let mask = 0xFF
 let mainSpd = 80
 let supSpd = 15
-let threshold = 20
+let del = 15
 
-//Cardinal direction
 type Direction = NE | SE | SW | NW
 
 type Sensor = N | S | W | E
@@ -68,13 +67,21 @@ let main _ =
         |> Observable.map (fun _ -> VMSensor.Read())
         |> Observable.subscribe colorProcessor
 
-    let initRead = 
-        ((ESensor.Read() + SSensor.Read() + WSensor.Read() + NSensor.Read()) / 4)
+    let (eInit, sInit, wInit, nInit) = 
+        (ESensor.Read(), SSensor.Read(), WSensor.Read(), NSensor.Read())
      
-    let ERead = ESensor.ToObservable() |> Observable.map (fun x -> (E, x))
-    let SRead = SSensor.ToObservable() |> Observable.map (fun x -> (S, x))
-    let WRead = WSensor.ToObservable() |> Observable.map (fun x -> (W, x))
-    let NRead = NSensor.ToObservable() |> Observable.map (fun x -> (N, x))
+    let ERead = 
+        ESensor.ToObservable() 
+        |> Observable.choose (fun x -> if x > eInit + del || x < eInit - del then Some E else None)
+    let SRead = 
+        SSensor.ToObservable() 
+        |> Observable.choose (fun x -> if x > sInit + del || x < sInit - del then Some S else None)
+    let WRead = 
+        WSensor.ToObservable() 
+        |> Observable.choose (fun x -> if x > wInit + del || x < wInit - del then Some W else None)
+    let NRead = 
+        NSensor.ToObservable() 
+        |> Observable.choose (fun x -> if x > nInit + del || x < nInit - del then Some N else None)
 
     let setter currDir = 
         match currDir with 
@@ -85,12 +92,10 @@ let main _ =
 
     let sensors = Observable.mergeList [ERead; SRead; WRead; NRead]
     use res = sensors 
-              |> Observable.choose (fun (s, x) -> if (x < initRead - threshold) || (x > initRead + threshold) then Some s else None)
               |> Observable.scan changer NE
               |> Observable.subscribe (fun d -> m1.Stop(); m3.Stop(); m2.Stop(); m4.Stop(); setter d)
 
     VMSensor.Start()
-    //Setting the amount of areas
     VMSensor.Size <- (1, 1)
     buttons.Start()
     setter NE
