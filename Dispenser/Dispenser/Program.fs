@@ -4,9 +4,9 @@ open System
 open System.Threading
 
 let mask = 0xFF
-let mainSpd = 80
-let supSpd = 15
-let del = 15
+let mainSpd = 60
+let supSpd = 50
+let tol = 40
 
 type Direction = NE | SE | SW | NW
 
@@ -22,20 +22,21 @@ let changer currDir sens =
 
 let exit = new EventWaitHandle(false, EventResetMode.AutoReset)
 
+
 [<EntryPoint>]
 let main _ = 
     use model = new Model()
     use buttons = new ButtonPad()
-    use m1 = model.Motor.["M1"]
-    use m2 = model.Motor.["M2"]
-    use m3 = model.Motor.["M3"]
-    use m4 = model.Motor.["M4"]
+    use NMotor = model.Motor.["M2"]
+    use WMotor = model.Motor.["M1"]
+    use EMotor = model.Motor.["M3"]
+    use SMotor = model.Motor.["M4"]
     use red   = model.Servo.["C1"]
     use green = model.Servo.["C2"]
     use blue  = model.Servo.["C3"]
     use ESensor = model.AnalogSensor.["A6"]
-    use SSensor = model.AnalogSensor.["A2"]
-    use WSensor = model.AnalogSensor.["A3"]
+    use WSensor = model.AnalogSensor.["A2"]
+    use SSensor = model.AnalogSensor.["A4"]
     use NSensor = model.AnalogSensor.["A5"]
     use VMSensor = model.MXNSensor
 
@@ -52,7 +53,7 @@ let main _ =
         match min with
             | x when x = grDel -> red.SetPower 0; blue.SetPower 0; green.SetPower 100
             | x when x = blDel -> red.SetPower 0; green.SetPower 0; blue.SetPower 100
-            | x when x = ylDel -> blue.SetPower 0; green.SetPower 30; red.SetPower 100; 
+            | x when x = ylDel -> blue.SetPower 0; green.SetPower 30; red.SetPower 100
             | _ -> failwith "no way"
 
     let colorProcessor (colArr : int[]) =
@@ -67,33 +68,33 @@ let main _ =
         |> Observable.map (fun _ -> VMSensor.Read())
         |> Observable.subscribe colorProcessor
 
-    let (eInit, sInit, wInit, nInit) = 
+    let (EInit, SInit, WInit, NInit) = 
         (ESensor.Read(), SSensor.Read(), WSensor.Read(), NSensor.Read())
-     
+
     let ERead = 
         ESensor.ToObservable() 
-        |> Observable.choose (fun x -> if x > eInit + del || x < eInit - del then Some E else None)
+        |> Observable.choose (fun x -> if abs (x - EInit) > tol then Some E else None)
     let SRead = 
         SSensor.ToObservable() 
-        |> Observable.choose (fun x -> if x > sInit + del || x < sInit - del then Some S else None)
+        |> Observable.choose (fun x -> if abs (x - SInit) > tol then Some S else None)
     let WRead = 
         WSensor.ToObservable() 
-        |> Observable.choose (fun x -> if x > wInit + del || x < wInit - del then Some W else None)
+        |> Observable.choose (fun x -> if abs (x - WInit) > tol then Some W else None)
     let NRead = 
         NSensor.ToObservable() 
-        |> Observable.choose (fun x -> if x > nInit + del || x < nInit - del then Some N else None)
+        |> Observable.choose (fun x -> if abs (x - NInit) > tol then Some N else None)
 
     let setter currDir = 
         match currDir with 
-            | NE -> m1.SetPower mainSpd; m3.SetPower mainSpd; m2.SetPower -supSpd; m4.SetPower -supSpd
-            | SW -> m1.SetPower -mainSpd; m3.SetPower -mainSpd; m2.SetPower supSpd; m4.SetPower supSpd
-            | SE -> m2.SetPower -mainSpd; m4.SetPower -mainSpd; m1.SetPower supSpd; m3.SetPower supSpd
-            | NW -> m2.SetPower mainSpd; m4.SetPower mainSpd; m1.SetPower supSpd; m3.SetPower supSpd
+            | NE -> NMotor.SetPower mainSpd; SMotor.SetPower mainSpd; WMotor.SetPower supSpd; EMotor.SetPower supSpd
+            | SW -> NMotor.SetPower -supSpd; SMotor.SetPower -supSpd; WMotor.SetPower -mainSpd; EMotor.SetPower -mainSpd
+            | SE -> NMotor.SetPower mainSpd; SMotor.SetPower mainSpd; WMotor.SetPower -supSpd; EMotor.SetPower -supSpd
+            | NW -> NMotor.SetPower -supSpd; SMotor.SetPower -supSpd; WMotor.SetPower mainSpd; EMotor.SetPower mainSpd
 
     let sensors = Observable.mergeList [ERead; SRead; WRead; NRead]
     use res = sensors 
               |> Observable.scan changer NE
-              |> Observable.subscribe (fun d -> m1.Stop(); m3.Stop(); m2.Stop(); m4.Stop(); setter d)
+              |> Observable.subscribe (fun d -> NMotor.Stop(); SMotor.Stop(); WMotor.Stop(); EMotor.Stop(); setter d)
 
     VMSensor.Start()
     VMSensor.Size <- (1, 1)
