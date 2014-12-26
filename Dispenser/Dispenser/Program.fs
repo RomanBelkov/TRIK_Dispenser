@@ -25,7 +25,14 @@ let exit = new EventWaitHandle(false, EventResetMode.AutoReset)
 
 [<EntryPoint>]
 let main _ = 
-    use model = new Model()
+    use model = new Model(ServoConfig = [| 
+                                    ("C1", "/sys/class/pwm/ecap.0", 
+                                     LEDControllerServo)
+                                    ("C2", "/sys/class/pwm/ecap.1", 
+                                     LEDControllerServo)
+                                    ("C3", "/sys/class/pwm/ecap.2", 
+                                     LEDControllerServo)
+                                    |])
     use buttons = new ButtonPad()
     use NMotor = model.Motor.["M2"]
     use WMotor = model.Motor.["M1"]
