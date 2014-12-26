@@ -5,8 +5,8 @@ open System.Threading
 
 let mask = 0xFF
 let mainSpd = 60
-let supSpd = 50
-let tol = 40
+let supSpd = 40
+let tol = 80
 
 type Direction = NE | SE | SW | NW
 
@@ -43,7 +43,7 @@ let main _ =
     use upButtonDispose = 
         buttons.ToObservable()
         |> Observable.filter (fun x -> ButtonEventCode.Up = x.Button)
-        |> Observable.subscribe (fun _ -> exit.Set() |> ignore)
+        |> Observable.subscribe (fun _ -> NMotor.Stop(); SMotor.Stop(); WMotor.Stop(); EMotor.Stop(); exit.Set() |> ignore)
 
     let colSetter (r, g, b) = 
         let grDel = (r - 0) * (r - 0) + (255 - g) * (255 - g) + (b - 0) * (b - 0)
@@ -60,7 +60,7 @@ let main _ =
         colArr.[0] 
         |> (fun x -> (mask &&& (x >>> 16), 
                       mask &&& (x >>> 8),
-                      mask  &&& x))  
+                      mask  &&& x))
         |> colSetter
 
     use time = 
