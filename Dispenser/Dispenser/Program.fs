@@ -1,4 +1,20 @@
-﻿open Trik
+﻿(*
+*   Copyright 2014-2015 Roman Belkov
+*
+*   Licensed under the Apache License, Version 2.0 (the "License");
+*   you may not use this file except in compliance with the License.
+*   You may obtain a copy of the License at
+*
+*       http://www.apache.org/licenses/LICENSE-2.0
+*
+*   Unless required by applicable law or agreed to in writing, software
+*   distributed under the License is distributed on an "AS IS" BASIS,
+*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*   See the License for the specific language governing permissions and
+*   limitations under the License.
+*)
+
+open Trik
 open Trik.Collections
 open System
 open System.Threading
@@ -22,29 +38,29 @@ let changer currDir sens =
 
 let exit = new EventWaitHandle(false, EventResetMode.AutoReset)
 
+//We want to use special parameters for servos because
+//special external LED controller is used 
+let LEDControllerServo = { stop = 0; zero = 0; min = 0; max = 2000000; period = 2000000 }
 
 [<EntryPoint>]
 let main _ = 
-    use model = new Model(ServoConfig = [| 
-                                    ("C1", "/sys/class/pwm/ecap.0", 
-                                     LEDControllerServo)
-                                    ("C2", "/sys/class/pwm/ecap.1", 
-                                     LEDControllerServo)
-                                    ("C3", "/sys/class/pwm/ecap.2", 
-                                     LEDControllerServo)
+    use model = new Model(ServosConfig = [| 
+                                    (C1, (C1.Path, LEDControllerServo))
+                                    (C2, (C2.Path, LEDControllerServo))
+                                    (C3, (C3.Path, LEDControllerServo))
                                     |])
-    use buttons = new ButtonPad()
-    use NMotor = model.Motor.["M2"]
-    use WMotor = model.Motor.["M1"]
-    use EMotor = model.Motor.["M3"]
-    use SMotor = model.Motor.["M4"]
-    use red   = model.Servo.["C1"]
-    use green = model.Servo.["C2"]
-    use blue  = model.Servo.["C3"]
-    use ESensor = model.AnalogSensor.["A6"]
-    use WSensor = model.AnalogSensor.["A2"]
-    use SSensor = model.AnalogSensor.["A4"]
-    use NSensor = model.AnalogSensor.["A5"]
+    use buttons = model.Buttons
+    use NMotor = model.Motors.[M2]
+    use WMotor = model.Motors.[M1]
+    use EMotor = model.Motors.[M3]
+    use SMotor = model.Motors.[M4]
+    use red   = model.Servos.[C1]
+    use green = model.Servos.[C2]
+    use blue  = model.Servos.[C3]
+    use ESensor = model.AnalogSensors.[A6]
+    use WSensor = model.AnalogSensors.[A2]
+    use SSensor = model.AnalogSensors.[A4]
+    use NSensor = model.AnalogSensors.[A5]
     use VMSensor = model.MXNSensor
 
     use upButtonDispose = 

@@ -1,4 +1,4 @@
-TRIK_Dispenser
+TRIK Dispenser
 ==============
 
-This is a repo containing all the code related to Dispenser robo
+This is a repository that contains code related to TRIK-based Dispenser robot
