@@ -15,7 +15,7 @@
 *)
 
 open Trik
-open Trik.Collections
+open Trik.Reactive
 open System
 open System.Threading
 
@@ -44,11 +44,11 @@ let LEDControllerServo = { stop = 0; zero = 0; min = 0; max = 2000000; period = 
 
 [<EntryPoint>]
 let main _ = 
-    use model = new Model(ServosConfig = [| 
-                                    (C1, (C1.Path, LEDControllerServo))
-                                    (C2, (C2.Path, LEDControllerServo))
-                                    (C3, (C3.Path, LEDControllerServo))
-                                    |])
+    use model = new Model()
+    model.ServosConfig.[C1] <- LEDControllerServo
+    model.ServosConfig.[C2] <- LEDControllerServo
+    model.ServosConfig.[C3] <- LEDControllerServo
+
     use buttons = model.Buttons
     use NMotor = model.Motors.[M2]
     use WMotor = model.Motors.[M1]
@@ -69,9 +69,9 @@ let main _ =
         |> Observable.subscribe (fun _ -> NMotor.Stop(); SMotor.Stop(); WMotor.Stop(); EMotor.Stop(); exit.Set() |> ignore)
 
     let colSetter (r, g, b) = 
-        let grDel = (r - 0) * (r - 0) + (255 - g) * (255 - g) + (b - 0) * (b - 0)
-        let blDel = (r - 0) * (r - 0) + (g - 0) * (g - 0) + (255 - b) * (255 - b)
-        let ylDel = (255 - r) * (255 - r) + (255 - g) * (255 - g) + (b - 0) * (b - 0)
+        let grDel = r * r + (255 - g) * (255 - g) + b * b
+        let blDel = r * r + g * g + (255 - b) * (255 - b)
+        let ylDel = (255 - r) * (255 - r) + (255 - g) * (255 - g) + b * b
         let min = [grDel; blDel; ylDel] |> List.min
         match min with
             | x when x = grDel -> red.SetPower 0; blue.SetPower 0; green.SetPower 100
@@ -87,7 +87,7 @@ let main _ =
         |> colSetter
 
     use time = 
-        Observable.Interval (TimeSpan.FromMilliseconds 500.)
+        Observable.interval (TimeSpan.FromMilliseconds 500.)
         |> Observable.map (fun _ -> VMSensor.Read())
         |> Observable.subscribe colorProcessor
 
@@ -114,10 +114,11 @@ let main _ =
             | SE -> NMotor.SetPower mainSpd; SMotor.SetPower mainSpd; WMotor.SetPower -supSpd; EMotor.SetPower -supSpd
             | NW -> NMotor.SetPower -supSpd; SMotor.SetPower -supSpd; WMotor.SetPower mainSpd; EMotor.SetPower mainSpd
 
-    let sensors = Observable.mergeList [ERead; SRead; WRead; NRead]
+    let sensors = ERead.Merge [SRead; WRead; NRead]
     use res = sensors 
               |> Observable.scan changer NE
               |> Observable.subscribe (fun d -> NMotor.Stop(); SMotor.Stop(); WMotor.Stop(); EMotor.Stop(); setter d)
+
 
     VMSensor.Start()
     VMSensor.Size <- (1, 1)
